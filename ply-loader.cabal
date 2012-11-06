@@ -34,7 +34,7 @@ library
   ghc-options:         -O2 -Wall
   exposed-modules:     PLY.Data, PLY.Types, PLY.Conf, PLY.Internal.Parsers
                        
-  build-depends:       base >= 4.6, 
+  build-depends:       base >= 4.6 && < 5, 
                        attoparsec >= 0.10, 
                        bytestring >= 0.10,
                        linear >= 0.3,
@@ -51,7 +51,7 @@ executable ply2bin
   main-is:          Main.hs
   ghc-options:      -O2 -Wall -threaded
   hs-source-dirs:   src/executable
-  build-depends:    base >= 4.6, 
+  build-depends:    base >= 4.6 && < 5, 
                     bytestring >= 0.10,
                     linear >= 0.3,
                     vector >= 0.9,
