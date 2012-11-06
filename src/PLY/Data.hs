@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables, BangPatterns #-}
 -- |The loading of a @ply@ file is broken down into two steps: header
 -- parsing, and data loading. The 'loadPLY' function will, if
 -- successful, return a data structure that may be queried to extract
@@ -24,12 +24,11 @@ module PLY.Data (PLYData, loadPLY, loadElements, loadElementsV3,
 import Control.Applicative
 import Control.Concurrent.ParallelIO (parallel)
 import Control.Lens (view)
-import Control.Monad ((>=>))
 import Data.Attoparsec.Char8
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BC
-import Data.Either (rights, partitionEithers)
+import Data.Either (partitionEithers)
 import Data.Vector (Vector)
 import qualified Data.Vector as V
 import qualified Data.Vector.Storable as VS
@@ -87,6 +86,7 @@ loadElements n (PLYData (body, (ASCII, ess))) = go ess body
                     | otherwise = go es $
                                   parseSkip (count (elNum e) line *> pure ()) b
 loadElements _ _ = error "Binary PLY is unsupported"
+{-# INLINABLE loadElements #-}
 
 -- |Like 'loadElements', but restricted to 3D vectors. When it can be
 -- used, this function is much more efficient than 'loadElements'.
@@ -98,6 +98,11 @@ loadElementsV3 n (PLYData (body, (ASCII, ess))) = go ess body
                     | otherwise = go es $
                                   parseSkip (count (elNum e) line *> pure ()) b
 loadElementsV3 _ _ = error "Binary PLY is unsupported"
+{-# INLINABLE loadElementsV3 #-}
+
+(>=!>) :: Monad m => (a -> m b) -> (b -> m c) -> a -> m c
+f >=!> g !x = f x >>= (g $!)
+infixr 1 >=!>
 
 -- |Load all meshes identified by a @.conf@ file in parallel, and
 -- transform vertex data into the coordinate frame specified by the
@@ -114,15 +119,21 @@ loadMeshesV3 confFile element = do dir <- takeDirectory <$>
                                    either (return . Left . (:[]))
                                           (fmap checkConcat . loadAllMeshes dir)
                                           c
-    where checkErrors xs = let (ls,rs) = partitionEithers xs
+    where checkErrors :: [Either String (VS.Vector (V3 a))] -> Either [String] [VS.Vector (V3 a)]
+          checkErrors xs = let (ls,rs) = partitionEithers xs
                            in if null ls then Right rs else Left ls
-          checkConcat = fmap VS.concat . checkErrors
+          checkConcat :: [Either String (VS.Vector (V3 a))] -> Either [String] (VS.Vector (V3 a))
+          checkConcat = (fmap VS.concat $!) . checkErrors
           loadMesh :: FilePath -> (ByteString, Transformation Double) -> 
                       IO (Either String (VS.Vector (V3 a)))
           loadMesh d (f, (t,r)) = 
             let m = mkTransformation (fmap realToFrac r) (fmap realToFrac t)
             in (loadPLY 
-                >=> loadElementsV3 element
-                >=> return . VS.map (view _xyz . (m !*) . vector))
+                >=!> loadElementsV3 element
+                >=!> return . VS.map (view _xyz . (m !*) . vector))
                <$> BS.readFile (d </> BC.unpack f)
+          loadAllMeshes :: FilePath -> Conf -> 
+                           IO ([Either String (VS.Vector (V3 a))])
           loadAllMeshes dir = parallel . map (loadMesh dir) . meshes
+{-# INLINABLE loadMeshesV3 #-}
+  
