@@ -20,7 +20,7 @@
 -- > loadConf confFile = loadMeshesV3 confFile "vertex"
 --
 module PLY.Data (PLYData, loadPLY, loadElements, loadElementsV3, 
-                 loadMeshesV3) where
+                 loadMeshesV3, loadHeader) where
 import Control.Applicative
 import Control.Concurrent.ParallelIO (parallel)
 import Control.Lens (view)
@@ -41,6 +41,7 @@ import System.FilePath (takeDirectory, (</>))
 import PLY.Conf
 import PLY.Internal.Parsers (line, parseSkip, skip, multiProps, 
                              parseScalar, header)
+import PLY.Internal.StrictReplicate
 import PLY.Types
 
 type Header = (Format, [Element])
@@ -53,12 +54,12 @@ instance Show PLYData where
   show (PLYData (_,h)) = "PLYData <bytes> " ++ show h
 
 parseASCII :: Element -> Parser (Vector (Vector Scalar))
-parseASCII e = V.replicateM (elNum e) 
-                            (skip *> (V.fromList <$> multiProps (elProps e)))
+parseASCII e = replicateM' (elNum e)
+                           (skip *> (V.fromList <$> multiProps (elProps e)))
 
 parseASCIIv3 :: forall a. PLYType a => Element -> Parser (VS.Vector (V3 a))
 parseASCIIv3 (Element _ n ps@[_,_,_])
-  | all samePropType ps = VS.replicateM n (skip *> (V3 <$> p <*> p <*> p))
+  | all samePropType ps = replicateM' n (skip *> (V3 <$> p <*> p <*> p))
   | otherwise = empty
   where t = plyType (undefined::a)
         p = unsafeUnwrap <$> (parseScalar t <* skipSpace)
@@ -74,6 +75,10 @@ loadPLY = aux . parse header
   where aux (Fail _t ctxt msg) = Left $ "Parse failed: "++msg++" in "++show ctxt
         aux (Partial _) = Left "Incomplete header"
         aux (Done t r) = Right $ PLYData (t, r)
+
+-- |Load a PLY header from a file.
+loadHeader :: FilePath -> IO (Either String PLYData)
+loadHeader = fmap loadPLY . BS.readFile
 
 -- |@loadElements elementName ply@ loads a 'Vector' of each instance
 -- of the requested element array. If you are extracted 3D data,

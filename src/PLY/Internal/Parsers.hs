@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, BangPatterns #-}
 module PLY.Internal.Parsers where
 import Control.Applicative
 import Data.Attoparsec.Char8 hiding (char)
@@ -90,11 +90,11 @@ parseScalar Tuint   = Suint   <$> uint
 parseScalar Tfloat  = Sfloat  <$> float
 parseScalar Tdouble = Sdouble <$> double
 
--- Parse a flat property list
+-- |Parse a flat property list
 multiProps :: [Property] -> Parser [Scalar]
 multiProps = go []
   where go acc [] = pure (reverse acc)
-        go acc (ScalarProperty t _:ps) = do x <- parseScalar t
+        go acc (ScalarProperty t _:ps) = do !x <- parseScalar t
                                             skipSpace
                                             go (x:acc) ps
         go _ (ListProperty t _:_) = int >>= flip count (parseScalar t)

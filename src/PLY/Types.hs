@@ -8,21 +8,21 @@ import Foreign.Storable (Storable)
 
 data Format = ASCII | Binary_LE | Binary_BE deriving Show
 
-data Scalar = Schar Int8 
-            | Suchar Word8
-            | Sshort Int16
-            | Sushort Word16
-            | Sint Int
-            | Suint Word32
-            | Sfloat Float
-            | Sdouble Double
+data Scalar = Schar   {-# UNPACK #-}!Int8 
+            | Suchar  {-# UNPACK #-}!Word8
+            | Sshort  {-# UNPACK #-}!Int16
+            | Sushort {-# UNPACK #-}!Word16
+            | Sint    {-# UNPACK #-}!Int
+            | Suint   {-# UNPACK #-}!Word32
+            | Sfloat  {-# UNPACK #-}!Float
+            | Sdouble {-# UNPACK #-}!Double
               deriving Show
 
 data ScalarT = Tchar | Tuchar | Tshort | Tushort | Tint | Tuint 
              | Tfloat | Tdouble deriving (Eq,Show)
 
-data Property = ScalarProperty ScalarT ByteString
-              | ListProperty ScalarT ByteString
+data Property = ScalarProperty !ScalarT !ByteString
+              | ListProperty !ScalarT !ByteString
                 deriving Show
 
 data Element = Element { elName  :: ByteString
@@ -47,3 +47,8 @@ instance PLYType Int where
   plyType _ = Tint
   unsafeUnwrap (Sint x) = x
   unsafeUnwrap y = error $ "Tried to unwrap "++show y++" as an Int"
+
+instance PLYType Word8 where
+  plyType _ = Tuchar
+  unsafeUnwrap (Suchar x) = x
+  unsafeUnwrap y = error $ "Tried to unwrap "++show y++" as a Word8"
