@@ -80,8 +80,8 @@ loadPLY = aux . parse header
 loadHeader :: FilePath -> IO (Either String PLYData)
 loadHeader = fmap loadPLY . BS.readFile
 
--- |@loadElements elementName ply@ loads a 'Vector' of each instance
--- of the requested element array. If you are extracted 3D data,
+-- |@loadElements elementName ply@ loads a 'Vector' of each vertex of
+-- the requested element array. If you are extracting 3D data,
 -- consider using 'loadElementsV3'.
 loadElements :: ByteString -> PLYData -> 
                 Either String (Vector (Vector Scalar))
@@ -141,4 +141,3 @@ loadMeshesV3 confFile element = do dir <- takeDirectory <$>
                            IO ([Either String (VS.Vector (V3 a))])
           loadAllMeshes dir = parallel . map (loadMesh dir) . meshes
 {-# INLINABLE loadMeshesV3 #-}
-  
