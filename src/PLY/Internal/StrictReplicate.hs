@@ -7,7 +7,7 @@ import Data.Vector.Fusion.Util (delay_inline)
 import Data.Vector.Fusion.Stream.Size (Size(..))
 
 -- | Yield a 'Stream' of values obtained by performing the monadic
--- action the given number of times. Each value yielded by teh monadic
+-- action the given number of times. Each value yielded by the monadic
 -- action is evaluated to WHNF.
 replicateStreamM' :: Monad m => Int -> m a -> Stream m a
 {-# INLINE [1] replicateStreamM' #-}
