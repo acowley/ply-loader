@@ -32,9 +32,7 @@ import Data.Either (partitionEithers)
 import Data.Vector (Vector)
 import qualified Data.Vector as V
 import qualified Data.Vector.Storable as VS
-import Linear.Matrix (mkTransformation, (!*))
-import Linear.V3
-import Linear.V4 (vector)
+import Linear
 import System.Directory (canonicalizePath)
 import System.FilePath (takeDirectory, (</>))
 
@@ -121,23 +119,29 @@ loadMeshesV3 :: forall a. (PLYType a, Fractional a) =>
 loadMeshesV3 confFile element = do dir <- takeDirectory <$> 
                                           canonicalizePath confFile
                                    c <- parseConf <$> BS.readFile confFile
+                                   let cam = let Right (Conf (t,r) _) = c
+                                             in fmap (fmap realToFrac) $
+                                                mkTransformation r t
                                    either (return . Left . (:[]))
-                                          (fmap checkConcat . loadAllMeshes dir)
+                                          (fmap checkConcat . loadAllMeshes dir cam)
                                           c
-    where checkErrors :: [Either String (VS.Vector (V3 a))] -> Either [String] [VS.Vector (V3 a)]
+    where checkErrors :: [Either String (VS.Vector (V3 a))]
+                      -> Either [String] [VS.Vector (V3 a)]
           checkErrors xs = let (ls,rs) = partitionEithers xs
                            in if null ls then Right rs else Left ls
-          checkConcat :: [Either String (VS.Vector (V3 a))] -> Either [String] (VS.Vector (V3 a))
+          checkConcat :: [Either String (VS.Vector (V3 a))]
+                      -> Either [String] (VS.Vector (V3 a))
           checkConcat = (fmap VS.concat $!) . checkErrors
-          loadMesh :: FilePath -> (ByteString, Transformation Double) -> 
-                      IO (Either String (VS.Vector (V3 a)))
-          loadMesh d (f, (t,r)) = 
-            let m = mkTransformation (fmap realToFrac r) (fmap realToFrac t)
+          loadMesh :: FilePath -> M44 a -> (ByteString, Transformation Double)
+                   -> IO (Either String (VS.Vector (V3 a)))
+          loadMesh d cam (f, (t,r)) = 
+            let m = cam !*! 
+                    mkTransformation (fmap realToFrac r) (fmap realToFrac t)
             in (loadPLY 
                 >=!> loadElementsV3 element
                 >=!> return . VS.map (view _xyz . (m !*) . vector))
                <$> BS.readFile (d </> BC.unpack f)
-          loadAllMeshes :: FilePath -> Conf -> 
+          loadAllMeshes :: FilePath -> M44 a -> Conf -> 
                            IO ([Either String (VS.Vector (V3 a))])
-          loadAllMeshes dir = parallel . map (loadMesh dir) . meshes
+          loadAllMeshes dir cam = parallel . map (loadMesh dir cam) . meshes
 {-# INLINABLE loadMeshesV3 #-}
