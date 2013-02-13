@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
--- |Parse Stanford 3D Scanning Repository ".conf" files that place
+-- |Parse Stanford 3D Scanning Repository \"@.conf@\" files that place
 -- individual PLY models into a consistent coordinate frame.
 module PLY.Conf (parseConf, Transformation, Conf(..)) where
 import Control.Applicative
