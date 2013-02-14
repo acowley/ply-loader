@@ -23,7 +23,6 @@ module PLY.Data (PLYData, loadPLY, loadElements, loadElementsV3,
                  loadMeshesV3, loadHeader) where
 import Control.Applicative
 import Control.Concurrent.ParallelIO (parallel)
-import Control.Lens (view)
 import Data.Attoparsec.Char8
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
@@ -114,7 +113,7 @@ infixr 1 >=!>
 -- are loaded from the same directory that contained the @.conf@ file,
 -- and the data associated with @element@ (e.g. @\"vertex\"@) is
 -- loaded, transformed, and concatenated from all the meshes.
-loadMeshesV3 :: forall a. (PLYType a, Fractional a) => 
+loadMeshesV3 :: forall a. (PLYType a, Fractional a, Conjugate a, RealFloat a) =>
                 FilePath -> ByteString -> IO (Either [String] (VS.Vector (V3 a)))
 loadMeshesV3 confFile element = do dir <- takeDirectory <$> 
                                           canonicalizePath confFile
@@ -134,12 +133,13 @@ loadMeshesV3 confFile element = do dir <- takeDirectory <$>
           checkConcat = (fmap VS.concat $!) . checkErrors
           loadMesh :: FilePath -> M44 a -> (ByteString, Transformation Double)
                    -> IO (Either String (VS.Vector (V3 a)))
-          loadMesh d cam (f, (t,r)) = 
-            let m = cam !*! 
-                    mkTransformation (fmap realToFrac r) (fmap realToFrac t)
+          loadMesh d _cam (f, (t,r)) = 
+            -- It is convenient to ignore the camera transformation so
+            -- that the object is at the origin.
+            let m = (^+^ fmap realToFrac t ) . rotate (conjugate (fmap realToFrac r))
             in (loadPLY 
                 >=!> loadElementsV3 element
-                >=!> return . VS.map (view _xyz . (m !*) . vector))
+                >=!> return . VS.map m)
                <$> BS.readFile (d </> BC.unpack f)
           loadAllMeshes :: FilePath -> M44 a -> Conf -> 
                            IO ([Either String (VS.Vector (V3 a))])

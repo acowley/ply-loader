@@ -24,7 +24,9 @@ data Conf = Conf { camera :: Transformation Double
 transformation :: Parser (V3 Double, Quaternion Double)
 transformation = (,) <$> vec <*> rotation
   where vec = (\[x,y,z] -> V3 x y z) <$> count 3 (skipSpace *> double)
-        rotation = Quaternion <$> (skipSpace *> double) <*> vec
+        rotation = flip Quaternion <$> vec <*> (skipSpace *> double)
+        --rotation = Quaternion <$> (skipSpace *> double) <*> vec
+        --rev (V3 x y z) = V3 z y x
 
 -- |Parse a mesh file specification.
 mesh :: Parser (ByteString, Transformation Double)
