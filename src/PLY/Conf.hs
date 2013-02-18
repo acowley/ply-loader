@@ -16,28 +16,29 @@ type Transformation a = (V3 a, Quaternion a)
 -- |A @.conf@ file includes a base transformation matrix, and a
 -- list of meshes identified by their file name and a 'Transformation'
 -- to place geometry in a consistent coordinate frame.
-data Conf = Conf { camera :: Transformation Double 
-                 , meshes :: [(ByteString, Transformation Double)] }
-            deriving Show
+data Conf a = Conf { camera :: Transformation a
+                   , meshes :: [(ByteString, Transformation a)] }
+              deriving Show
 
 -- |Parse a 3D translation vector followed by a quaternion.
-transformation :: Parser (V3 Double, Quaternion Double)
+transformation :: Fractional a => Parser (V3 a, Quaternion a)
 transformation = (,) <$> vec <*> rotation
-  where vec = (\[x,y,z] -> V3 x y z) <$> count 3 (skipSpace *> double)
-        rotation = flip Quaternion <$> vec <*> (skipSpace *> double)
+  where vec = (\[x,y,z] -> V3 x y z) <$> count 3 (skipSpace *> double')
+        rotation = flip Quaternion <$> vec <*> (skipSpace *> double')
+        double' = realToFrac <$> double
         --rotation = Quaternion <$> (skipSpace *> double) <*> vec
         --rev (V3 x y z) = V3 z y x
 
 -- |Parse a mesh file specification.
-mesh :: Parser (ByteString, Transformation Double)
+mesh :: Fractional a => Parser (ByteString, Transformation a)
 mesh = (,) <$> ("bmesh " .*> word) <*> transformation
 
 -- |Parser for a Stanford .conf file.
-conf :: Parser Conf
+conf :: Fractional a => Parser (Conf a)
 conf = Conf <$> ("camera " .*> transformation <* skipSpace)
             <*> (skipSpace *> cybmesh *> many1 (skipSpace *> mesh))
   where cybmesh = skipMany ("mesh " .*> line) -- Not a PLY file!
 
 -- |Parse a Stanford .conf file.
-parseConf :: ByteString -> Either String Conf
+parseConf :: Fractional a => ByteString -> Either String (Conf a)
 parseConf = parseOnly conf
