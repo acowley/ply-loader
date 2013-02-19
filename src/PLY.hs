@@ -7,9 +7,10 @@
 -- > {-# LANGUAGE OverloadedStrings #-}
 -- > import Data.Vector.Storable (Vector)
 -- > import Linear.V3
+-- > import PLY
 -- >
 -- > loadVerts :: FilePath -> IO (Either String (Vector (V3 Float)))
--- > loadVerts = loadPlyElementsV3 "vertex"
+-- > loadVerts = loadElementsV3 "vertex"
 -- 
 -- To load all vertex data from a series of @ply@ files identified by
 -- a @.conf@ file, consider using,
@@ -18,11 +19,11 @@
 -- > fromConf = loadConfV3 "vertex"
 --
 module PLY (-- * Easy loading interface
-            loadPlyElements, loadPlyElementsV3, loadConfV3,
+            loadElements, loadElementsV3, loadConfV3,
 
             -- * Loading components
             PLYData, loadHeader, preloadPly, 
-            loadElements, loadElementsV3) where
+            loadPlyElements, loadPlyElementsV3) where
 import Control.Applicative
 import Control.Concurrent.ParallelIO (parallel)
 import Control.Monad ((>=>))
@@ -47,10 +48,10 @@ type Header = (Format, [Element])
 
 -- |A PLY header and the associated raw data. Use 'loadElements' or
 -- 'loadElementsV3' to extract a particular element array.
-newtype PLYData = PLYData (ByteString, Header)
+data PLYData = PLYData !ByteString !Header
 
 instance Show PLYData where
-  show (PLYData (_,h)) = "PLYData <bytes> " ++ show h
+  show (PLYData _ h) = "PLYData <bytes> " ++ show h
 
 -- |Load a PLY header from a file.
 loadHeader :: FilePath -> IO (Either String PLYData)
@@ -63,53 +64,49 @@ preloadPly :: ByteString -> Either String PLYData
 preloadPly = aux . parse header
   where aux (Fail _t ctxt msg) = Left $ "Parse failed: "++msg++" in "++show ctxt
         aux (Partial _) = Left "Incomplete header"
-        aux (Done t r) = Right $ PLYData (t, r)
+        aux (Done t r) = Right $ PLYData t r
 
--- |@loadElements elementName ply@ loads a 'Vector' of each vertex of
+-- |@loadPlyElements elementName ply@ loads a 'Vector' of each vertex of
 -- the requested element array. If you are extracting 3D data,
--- consider using 'loadElementsV3'.
-loadElements :: ByteString -> PLYData -> 
-                Either String (Vector (Vector Scalar))
-loadElements n (PLYData (body, (ASCII, ess))) = go ess body
+-- consider using 'loadPlyElementsV3'.
+loadPlyElements :: ByteString -> PLYData -> 
+                   Either String (Vector (Vector Scalar))
+loadPlyElements n (PLYData body (ASCII, ess)) = go ess body
   where go [] _ = Left "Unknown element"
         go (e:es) b | elName e == n = parseOnly (parseASCII e) b
                     | otherwise = go es $
                                   parseSkip (count (elNum e) line *> pure ()) b
-loadElements _ _ = error "Binary PLY is unsupported"
-{-# INLINABLE loadElements #-}
-
--- |@loadPlyElements plyFile elementName@ loads a 'Vector' of each
--- vertex of the requested element array from @plyFile@.
-loadPlyElements :: ByteString -> FilePath
-                -> IO (Either String (Vector (Vector Scalar)))
-loadPlyElements name file =
-  (preloadPly >=> loadElements name) <$> BS.readFile file
+loadPlyElements _ _ = error "Binary PLY is unsupported"
 {-# INLINABLE loadPlyElements #-}
 
--- |Like 'loadElements', but restricted to 3D vectors. When it can be
--- used, this function is much more efficient than 'loadElements'.
-loadElementsV3 :: PLYType a => ByteString -> PLYData -> 
-                  Either String (VS.Vector (V3 a))
-loadElementsV3 n (PLYData (body, (ASCII, ess))) = go ess body
+-- |@loadElements elementName plyFile@ loads a 'Vector' of each
+-- vertex of the requested element array from @plyFile@.
+loadElements :: ByteString -> FilePath
+             -> IO (Either String (Vector (Vector Scalar)))
+loadElements name file =
+  (preloadPly >=> loadPlyElements name) <$> BS.readFile file
+{-# INLINABLE loadElements #-}
+
+-- |Like 'loadPlyElements', but restricted to 3D vectors. When it can be
+-- used, this function is much more efficient than 'loadPlyElements'.
+loadPlyElementsV3 :: PLYType a => ByteString -> PLYData -> 
+                     Either String (VS.Vector (V3 a))
+loadPlyElementsV3 n (PLYData body (ASCII, ess)) = go ess body
   where go [] _ = Left "Unknown element"
         go (e:es) b | elName e == n = parseOnly (parseASCIIv3 e) b
                     | otherwise = go es $
                                   parseSkip (count (elNum e) line *> pure ()) b
-loadElementsV3 _ _ = error "Binary PLY is unsupported"
-{-# INLINABLE loadElementsV3 #-}
-
--- |Like 'loadPlyElements', but restricted to 3D vectors. When it can
--- be used, this function is much more efficient thatn
--- 'loadPlyElements'.
-loadPlyElementsV3 :: PLYType a => ByteString -> FilePath
-                  -> IO (Either String (VS.Vector (V3 a)))
-loadPlyElementsV3 name file =
-  (preloadPly >=> loadElementsV3 name) <$> BS.readFile file
+loadPlyElementsV3 _ _ = error "Binary PLY is unsupported"
 {-# INLINABLE loadPlyElementsV3 #-}
 
-(>=!>) :: Monad m => (a -> m b) -> (b -> m c) -> a -> m c
-f >=!> g !x = f x >>= (g $!)
-infixr 1 >=!>
+-- |Like 'loadElements', but restricted to 3D vectors. When it can
+-- be used, this function is much more efficient thatn
+-- 'loadPlyElements'.
+loadElementsV3 :: PLYType a => ByteString -> FilePath
+               -> IO (Either String (VS.Vector (V3 a)))
+loadElementsV3 name file =
+  (preloadPly >=> loadPlyElementsV3 name) <$> BS.readFile file
+{-# INLINABLE loadElementsV3 #-}
 
 type ErrorMsg a = Either String a
 
@@ -133,16 +130,16 @@ loadConfV3 element confFile =
           checkConcat :: [ErrorMsg (VS.Vector (V3 a))]
                       -> ErrorMsg (VS.Vector (V3 a))
           checkConcat = (fmap VS.concat $!) . checkErrors
+          strictE l@(Left !_x) = l
+          strictE r@(Right !_x) = r
           loadMesh :: FilePath -> M44 a -> (ByteString, Transformation a)
                    -> IO (ErrorMsg (VS.Vector (V3 a)))
           loadMesh d _cam (f, (t,r)) = 
             -- It is convenient to ignore the camera transformation so
             -- that the object is at the origin.
             let m = (^+^ fmap realToFrac t ) . rotate (conjugate (fmap realToFrac r))
-            in (preloadPly 
-                >=!> loadElementsV3 element
-                >=!> return . VS.map m)
-               <$> BS.readFile (d </> BC.unpack f)
+            in fmap (VS.map m) . strictE
+               <$> loadElementsV3 element (d </> BC.unpack f)
           loadAll :: FilePath -> Conf a -> IO ([ErrorMsg (VS.Vector (V3 a))])
           loadAll dir (Conf (t,r) ms) = 
             let cam = mkTransformation r t
