@@ -53,6 +53,13 @@ data PLYData = PLYData !ByteString !Header
 instance Show PLYData where
   show (PLYData _ h) = "PLYData <bytes> " ++ show h
 
+-- Helper to ensure that that an 'Either' is strict in the argument to
+-- the data constructor. This is important to keep Vector operations
+-- flowing efficiently.
+strictE :: Either a b -> Either a b
+strictE l@(Left !_x) = l
+strictE r@(Right !_x) = r
+
 -- |Load a PLY header from a file.
 loadHeader :: FilePath -> IO (Either String PLYData)
 loadHeader = fmap preloadPly . BS.readFile
@@ -71,7 +78,7 @@ preloadPly = aux . parse header
 -- consider using 'loadPlyElementsV3'.
 loadPlyElements :: ByteString -> PLYData -> 
                    Either String (Vector (Vector Scalar))
-loadPlyElements n (PLYData body (ASCII, ess)) = go ess body
+loadPlyElements n (PLYData body (ASCII, ess)) = strictE $ go ess body
   where go [] _ = Left "Unknown element"
         go (e:es) b | elName e == n = parseOnly (parseASCII e) b
                     | otherwise = go es $
@@ -91,7 +98,7 @@ loadElements name file =
 -- used, this function is much more efficient than 'loadPlyElements'.
 loadPlyElementsV3 :: PLYType a => ByteString -> PLYData -> 
                      Either String (VS.Vector (V3 a))
-loadPlyElementsV3 n (PLYData body (ASCII, ess)) = go ess body
+loadPlyElementsV3 n (PLYData body (ASCII, ess)) = strictE $ go ess body
   where go [] _ = Left "Unknown element"
         go (e:es) b | elName e == n = parseOnly (parseASCIIv3 e) b
                     | otherwise = go es $
@@ -130,16 +137,13 @@ loadConfV3 element confFile =
           checkConcat :: [ErrorMsg (VS.Vector (V3 a))]
                       -> ErrorMsg (VS.Vector (V3 a))
           checkConcat = (fmap VS.concat $!) . checkErrors
-          strictE l@(Left !_x) = l
-          strictE r@(Right !_x) = r
           loadMesh :: FilePath -> M44 a -> (ByteString, Transformation a)
                    -> IO (ErrorMsg (VS.Vector (V3 a)))
           loadMesh d _cam (f, (t,r)) = 
             -- It is convenient to ignore the camera transformation so
             -- that the object is at the origin.
             let m = (^+^ fmap realToFrac t ) . rotate (conjugate (fmap realToFrac r))
-            in fmap (VS.map m) . strictE
-               <$> loadElementsV3 element (d </> BC.unpack f)
+            in fmap (VS.map m) <$> loadElementsV3 element (d </> BC.unpack f)
           loadAll :: FilePath -> Conf a -> IO ([ErrorMsg (VS.Vector (V3 a))])
           loadAll dir (Conf (t,r) ms) = 
             let cam = mkTransformation r t
