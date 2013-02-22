@@ -104,7 +104,7 @@ multiProps = go []
 
 -- |Parse a PLY header.
 header :: Parser (Format, [Element])
-header = (,) <$> preamble <*> elements <*. "end_header"
+header = (,) <$> preamble <*> elements <*. "end_header" <* endOfLine
   where preamble = "ply" .*> skip *> format
         elements = many1 (skip *> element <* skipSpace)
 
