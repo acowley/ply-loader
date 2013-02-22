@@ -22,7 +22,7 @@ module PLY (-- * Easy loading interface
             loadElements, loadElementsV3, loadConfV3,
 
             -- * Loading components
-            PLYData, loadHeader, preloadPly, 
+            Header, PLYData, loadHeader, preloadPly, plyHeader,
             loadPlyElements, loadPlyElementsV3) where
 import Control.Applicative
 import Control.Concurrent.ParallelIO (parallel)
@@ -40,6 +40,7 @@ import System.Directory (canonicalizePath)
 import System.FilePath (takeDirectory, (</>))
 
 import PLY.Ascii
+import PLY.Binary
 import PLY.Conf
 import PLY.Internal.Parsers (line, parseSkip, header)
 import PLY.Types
@@ -52,6 +53,11 @@ data PLYData = PLYData !ByteString !Header
 
 instance Show PLYData where
   show (PLYData _ h) = "PLYData <bytes> " ++ show h
+
+-- | Extract the 'Header' from a partially loaded PLY file (as from
+-- 'preloadPly').
+plyHeader :: PLYData -> Header
+plyHeader (PLYData _ h) = h
 
 -- Helper to ensure that that an 'Either' is strict in the argument to
 -- the data constructor. This is important to keep Vector operations
@@ -83,6 +89,10 @@ loadPlyElements n (PLYData body (ASCII, ess)) = strictE $ go ess body
         go (e:es) b | elName e == n = parseOnly (parseASCII e) b
                     | otherwise = go es $
                                   parseSkip (count (elNum e) line *> pure ()) b
+loadPlyElements n (PLYData body (Binary_LE, ess)) = strictE $ go ess body
+  where go [] _ = Left "Unknown element"
+        go (e:es) b | elName e == n = Right . fst $ parseBinElement e b
+                    | otherwise = go es . snd $ parseBinElement e b
 loadPlyElements _ _ = error "Binary PLY is unsupported"
 {-# INLINABLE loadPlyElements #-}
 
