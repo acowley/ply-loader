@@ -2,8 +2,8 @@
 module PLY.Internal.Parsers where
 import Control.Applicative
 import Data.Attoparsec.Char8 hiding (char)
-import qualified Data.Attoparsec.ByteString as B
 import Data.ByteString (ByteString)
+import qualified Data.ByteString.Char8 as BC
 import PLY.Types
 
 -- |Skip white space, comments, and obj_info lines.
@@ -43,7 +43,7 @@ float = realToFrac <$> double
 
 -- | Take everything up to the end of the line
 line :: Parser ByteString
-line = B.takeTill isEndOfLine
+line = BC.pack <$> manyTill anyChar endOfLine
 
 scalarProperty :: Parser Property
 scalarProperty = ScalarProperty <$> ("property " .*> scalarType) <*> line
@@ -97,7 +97,7 @@ multiProps = go []
         go acc (ScalarProperty t _:ps) = do !x <- parseScalar t
                                             skipSpace
                                             go (x:acc) ps
-        go _ (ListProperty t _:_) = int >>= flip count (parseScalar t)
+        go _ (ListProperty t _:_) = int <* skipSpace >>= flip count (parseScalar t)
 
 -- FIXME: Support for list properties assumes that an element will not
 -- have any other properties if it has a list property!
