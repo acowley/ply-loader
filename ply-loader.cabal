@@ -1,5 +1,5 @@
 name:                ply-loader
-version:             0.3.1
+version:             0.4
 synopsis:            PLY file loader.
 
 description:         PLY is a lightweight file format for representing 3D
@@ -35,8 +35,8 @@ library
   exposed-modules:     PLY, PLY.Ascii, PLY.Binary, PLY.Conf, PLY.Types,
                        PLY.Internal.Parsers, PLY.Internal.StrictReplicate
                        
-  build-depends:       base >= 4.6 && < 5, 
-                       attoparsec >= 0.10, 
+  build-depends:       base >= 4.6 && < 5,
+                       attoparsec >= 0.12.0.0,
                        bytestring >= 0.10,
                        linear >= 0.2,
                        lens >= 3.0,

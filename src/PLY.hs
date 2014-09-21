@@ -28,13 +28,12 @@ import Control.Applicative
 import Control.Concurrent.ParallelIO (parallel)
 import Control.Monad ((>=>))
 import Control.Monad.Trans.Error
-import Data.Attoparsec.Char8
+import Data.Attoparsec.ByteString.Char8
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BC
 import Data.Either (partitionEithers)
 import Data.Vector (Vector)
-import qualified Data.Vector as VB
 import qualified Data.Vector.Storable as VS
 import Linear
 import System.Directory (canonicalizePath)

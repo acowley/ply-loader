@@ -3,7 +3,7 @@
 -- individual PLY models into a consistent coordinate frame.
 module PLY.Conf (parseConf, Transformation, Conf(..)) where
 import Control.Applicative
-import Data.Attoparsec.Char8
+import Data.Attoparsec.ByteString.Char8
 import Data.ByteString (ByteString)
 import Linear.V3
 import Linear.Quaternion
@@ -31,13 +31,13 @@ transformation = (,) <$> vec <*> rotation
 
 -- |Parse a mesh file specification.
 mesh :: Fractional a => Parser (ByteString, Transformation a)
-mesh = (,) <$> ("bmesh " .*> word) <*> transformation
+mesh = (,) <$> ("bmesh " *> word) <*> transformation
 
 -- |Parser for a Stanford .conf file.
 conf :: Fractional a => Parser (Conf a)
-conf = Conf <$> ("camera " .*> transformation <* skipSpace)
+conf = Conf <$> ("camera " *> transformation <* skipSpace)
             <*> (skipSpace *> cybmesh *> many1 (skipSpace *> mesh))
-  where cybmesh = skipMany ("mesh " .*> line) -- Not a PLY file!
+  where cybmesh = skipMany ("mesh " *> line) -- Not a PLY file!
 
 -- |Parse a Stanford .conf file.
 parseConf :: Fractional a => ByteString -> Either String (Conf a)

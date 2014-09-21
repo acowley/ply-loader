@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module PLY.Ascii where
 import Control.Applicative
-import Data.Attoparsec.Char8
+import Data.Attoparsec.ByteString.Char8
 import Data.Vector (Vector)
 import qualified Data.Vector as V
 import qualified Data.Vector.Storable as VS

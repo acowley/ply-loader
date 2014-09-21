@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings, BangPatterns #-}
 module PLY.Internal.Parsers where
 import Control.Applicative
-import Data.Attoparsec.Char8 hiding (char)
+import Data.Attoparsec.ByteString.Char8 hiding (char)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as BC
 import PLY.Types
@@ -13,10 +13,10 @@ skip = skipSpace *> ((ignore *> line *> skip) <|> pure ())
 
 -- |Parse a PLY file format line
 format :: Parser Format
-format = "format" .*> skipSpace *> (ascii <|> le <|> be)
-  where ascii = "ascii 1.0" .*> pure ASCII
-        le = "binary_little_endian 1.0" .*> pure Binary_LE
-        be = "binary_big_endian 1.0" .*> pure Binary_BE
+format = "format" *> skipSpace *> (ascii <|> le <|> be)
+  where ascii = "ascii 1.0" *> pure ASCII
+        le = "binary_little_endian 1.0" *> pure Binary_LE
+        be = "binary_big_endian 1.0" *> pure Binary_BE
 
 -- * Numeric type parsers
 
@@ -46,25 +46,25 @@ line :: Parser ByteString
 line = BC.pack <$> manyTill anyChar endOfLine
 
 scalarProperty :: Parser Property
-scalarProperty = ScalarProperty <$> ("property " .*> scalarType) <*> line
+scalarProperty = ScalarProperty <$> ("property " *> scalarType) <*> line
 
 scalarType :: Parser ScalarT
 scalarType = choice $
-             [ "char "   .*> pure Tchar
-             , "uchar "  .*> pure Tuchar
-             , "short "  .*> pure Tshort
-             , "ushort " .*> pure Tushort
-             , "int "    .*> pure Tint
-             , "uint "   .*> pure Tuint
-             , "float "  .*> pure Tfloat
-             , "double " .*> pure Tdouble ]
+             [ "char "   *> pure Tchar
+             , "uchar "  *> pure Tuchar
+             , "short "  *> pure Tshort
+             , "ushort " *> pure Tushort
+             , "int "    *> pure Tint
+             , "uint "   *> pure Tuint
+             , "float "  *> pure Tfloat
+             , "double " *> pure Tdouble ]
 
 -- |Take the next white space-delimited word.
 word :: Parser ByteString
 word = skipSpace *> takeTill isSpace <* skipSpace
 
 listProperty :: Parser Property
-listProperty = ListProperty <$> ("property list " .*> word *> scalarType)
+listProperty = ListProperty <$> ("property list " *> word *> scalarType)
                             <*> line
 
 -- |Parse a monotyped list of values. All returned 'Scalar' values
@@ -76,7 +76,7 @@ property :: Parser Property
 property = skip *> (scalarProperty <|> listProperty)
 
 element :: Parser Element
-element = Element <$> ("element " .*> takeTill isSpace) 
+element = Element <$> ("element " *> takeTill isSpace)
                   <*> (skipSpace *> int <* skipSpace)
                   <*> many1 property
 
@@ -104,8 +104,8 @@ multiProps = go []
 
 -- |Parse a PLY header.
 header :: Parser (Format, [Element])
-header = (,) <$> preamble <*> elements <*. "end_header" <* endOfLine
-  where preamble = "ply" .*> skip *> format
+header = (,) <$> preamble <*> elements <* "end_header" <* endOfLine
+  where preamble = "ply" *> skip *> format
         elements = many1 (skip *> element <* skipSpace)
 
 -- |Advance a 'ByteString' to where a given 'Parser' finishes. An
