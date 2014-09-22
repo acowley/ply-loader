@@ -1,5 +1,5 @@
 name:                ply-loader
-version:             0.4
+version:             0.4.1
 synopsis:            PLY file loader.
 
 description:         PLY is a lightweight file format for representing 3D
@@ -25,6 +25,7 @@ copyright:           (c) Anthony Cowley 2012
 category:            Graphics
 build-type:          Simple
 cabal-version:       >=1.10
+extra-source-files:  CHANGELOG.md
 
 source-repository head
   type: git

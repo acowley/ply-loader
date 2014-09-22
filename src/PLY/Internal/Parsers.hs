@@ -50,14 +50,14 @@ scalarProperty = ScalarProperty <$> ("property " *> scalarType) <*> line
 
 scalarType :: Parser ScalarT
 scalarType = choice $
-             [ "char "   *> pure Tchar
-             , "uchar "  *> pure Tuchar
-             , "short "  *> pure Tshort
-             , "ushort " *> pure Tushort
-             , "int "    *> pure Tint
-             , "uint "   *> pure Tuint
-             , "float "  *> pure Tfloat
-             , "double " *> pure Tdouble ]
+             [ ("char "   <|> "int8 ")    *> pure Tchar
+             , ("uchar "  <|> "uint8 ")   *> pure Tuchar
+             , ("short "  <|> "int16 ")   *> pure Tshort
+             , ("ushort " <|> "uint16 ")  *> pure Tushort
+             , ("int "    <|> "int32 ")   *> pure Tint
+             , ("uint "   <|> "uint32 ")  *> pure Tuint
+             , ("float "  <|> "float32 ") *> pure Tfloat
+             , ("double " <|> "float64 ") *> pure Tdouble ]
 
 -- |Take the next white space-delimited word.
 word :: Parser ByteString
