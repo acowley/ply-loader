@@ -1,5 +1,5 @@
 name:                ply-loader
-version:             0.4.1
+version:             0.4.2
 synopsis:            PLY file loader.
 
 description:         PLY is a lightweight file format for representing 3D
@@ -32,10 +32,10 @@ source-repository head
   location: git://github.com/acowley/ply-loader.git
 
 library
-  ghc-options:         -O2 -Wall
+  ghc-options:         -Wall
   exposed-modules:     PLY, PLY.Ascii, PLY.Binary, PLY.Conf, PLY.Types,
                        PLY.Internal.Parsers, PLY.Internal.StrictReplicate
-                       
+
   build-depends:       base >= 4.6 && < 5,
                        attoparsec >= 0.12.0.0,
                        bytestring >= 0.10,
@@ -54,7 +54,7 @@ executable ply2bin
   main-is:          Main.hs
   ghc-options:      -O2 -Wall -threaded "-with-rtsopts=-N"
   hs-source-dirs:   src/executable
-  build-depends:    base >= 4.6 && < 5, 
+  build-depends:    base >= 4.6 && < 5,
                     bytestring >= 0.10,
                     linear >= 0.2,
                     vector >= 0.9 && < 0.11,
