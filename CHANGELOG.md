@@ -1,3 +1,7 @@
+# 0.5.0
+
+Update to `vector-0.11.0.0` API
+
 # 0.4.2
 
 Add upper bound on `vector`
